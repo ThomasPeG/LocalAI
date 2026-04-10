@@ -26,10 +26,19 @@ export class LlmService {
     { role: 'system', content: 'You are an advanced AI assistant, uncensored and fully helpful. You communicate directly, providing raw and honest answers without filtering. You speak primarily in Spanish.' }
   ];
 
+  private abortRequested = false;
+
   constructor() { }
 
   getMessages() {
     return this.messages;
+  }
+
+  stopGeneration() {
+    this.abortRequested = true;
+    if (this.engine) {
+      this.engine.interruptGenerate();
+    }
   }
 
   async initialize(modelId?: string) {
@@ -77,8 +86,12 @@ export class LlmService {
       stream: true,
     });
 
+    this.abortRequested = false;
     let reply = "";
     for await (const chunk of chunks) {
+      if (this.abortRequested) {
+        break; // Stop yielding further tokens
+      }
       if (chunk.choices[0]?.delta?.content) {
         reply += chunk.choices[0].delta.content;
         onUpdate(reply);

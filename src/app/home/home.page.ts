@@ -54,6 +54,11 @@ export class HomePage implements OnInit {
     this.imageMode = !this.imageMode;
   }
 
+  stopGeneration() {
+    this.llmService.stopGeneration();
+    this.isGenerating = false;
+  }
+
   async sendMessage() {
     const text = this.userInput.trim();
     if (!text) return;
@@ -62,12 +67,20 @@ export class HomePage implements OnInit {
     this.messages.push({ role: 'user', content: text });
     this.scrollToBottom();
 
-    if (this.imageMode) {
-      if (!this.imgReady) return;
+    // Auto-detect image generation request even if the manual button wasn't pressed
+    const imageIntentMatch = text.match(/^(dibuja|crea|genera|haz|imagina|mu[eé]strame).*(imagen|foto|dibujo|ilustraci[oó]n|paisaje)/i);
+    const shouldUseImage = this.imageMode || !!imageIntentMatch;
+
+    if (shouldUseImage) {
+      if (!this.imgReady) {
+        this.messages.push({ role: 'assistant', content: '⚠️ El motor de imágenes aún no está listo.' });
+        return;
+      }
       this.isGenerating = true;
       try {
         const base64Img = await this.imgService.generateImage(text);
         this.generatedImageSrc = base64Img;
+        this.messages.push({ role: 'assistant', content: 'Aquí tienes la imagen generada:' });
       } catch (e: any) {
         this.messages.push({ role: 'assistant', content: 'Error al generar la imagen: ' + e.message });
       } finally {
@@ -75,7 +88,10 @@ export class HomePage implements OnInit {
         this.scrollToBottom();
       }
     } else {
-      if (!this.llmReady) return;
+      if (!this.llmReady) {
+        this.messages.push({ role: 'assistant', content: '⚠️ El modelo de chat aún se está cargando.' });
+        return;
+      }
       this.isGenerating = true;
       
       // Añadimos un mensaje vacío para llenarlo progresivamente

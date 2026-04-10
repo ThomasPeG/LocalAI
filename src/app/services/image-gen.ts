@@ -1,10 +1,6 @@
 import { Injectable } from '@angular/core';
-import { pipeline, env } from '@huggingface/transformers';
+import { loadModel, generateImage, ModelId, GenerateParams } from 'web-txt2img';
 import { BehaviorSubject } from 'rxjs';
-
-// Configurar transformers para ejecutarse en entorno de navegador.
-env.allowLocalModels = false;
-env.useBrowserCache = true;
 
 export interface ImageGenState {
   progress: number;
@@ -16,10 +12,8 @@ export interface ImageGenState {
   providedIn: 'root'
 })
 export class ImageGenService {
-  private generator: any = null;
-  // Usaremos un modelo más ligero para prevenir cuelgues constantes.
-  // 'Xenova/sd-turbo' es más pequeño, pero si requiere menos consumo se usa LCM.
-  private modelId = 'Xenova/sd-turbo'; 
+  private modelId: ModelId = 'sd-turbo'; 
+  private isLoaded = false;
   
   private stateSub = new BehaviorSubject<ImageGenState>({ progress: 0, status: '', isReady: false });
   public state$ = this.stateSub.asObservable();
@@ -27,21 +21,18 @@ export class ImageGenService {
   constructor() { }
 
   async initialize() {
-    if (this.generator) return;
+    if (this.isLoaded) return;
     
     try {
-      this.stateSub.next({ progress: 0, status: 'Cargando motor de imágenes (WebGPU)...', isReady: false });
-      const pipeString: any = 'text-to-image';
-      this.generator = await pipeline(pipeString, this.modelId, {
-        device: 'webgpu', // Utiliza aceleración de tarjeta gráfica obligatoriamente
-        progress_callback: (x: any) => {
-          if (x.status === 'progress') {
-            const pct = typeof x.progress === 'number' ? x.progress : 0;
-            this.stateSub.next({ progress: pct, status: `Descargando motor SD: ${x.file || '...'} (${Math.round(pct)}%)`, isReady: false });
-          }
+      this.stateSub.next({ progress: 0, status: 'Cargando motor de imágenes (WebGPU SD-Turbo)...', isReady: false });
+      
+      await loadModel(this.modelId, {
+        onProgress: (p: any) => {
+          this.stateSub.next({ progress: 70, status: 'Descargando modelo en memoria...', isReady: false });
         }
       });
       
+      this.isLoaded = true;
       this.stateSub.next({ progress: 100, status: 'Motor de imágenes local listo', isReady: true });
     } catch (error: any) {
       console.error("Image Gen Error:", error);
@@ -49,29 +40,63 @@ export class ImageGenService {
     }
   }
 
-  async generateImage(prompt: string): Promise<string> {
-    if (!this.generator) throw new Error("Generador de imágenes no está listo.");
+  async generateImage(promptText: string): Promise<string> {
+    if (!this.isLoaded) throw new Error("Generador de imágenes no está listo.");
     
     this.stateSub.next({ progress: 0, status: 'Generando imagen (puede tardar en celulares)...', isReady: true });
     
     try {
-      // Configuraciones turbo para Stable Diffusion (muy pocos pasos)
-      const result: any = await this.generator(prompt, {
-        num_inference_steps: 4, 
-        guidance_scale: 1, 
-      });
+      const params: GenerateParams = {
+        model: this.modelId,
+        prompt: promptText,
+        numInferenceSteps: 4, 
+        guidanceScale: 1
+      } as any;
+      
+      const result: any = await generateImage(params);
       
       this.stateSub.next({ progress: 100, status: '¡Generación completada!', isReady: true });
       
-      if (Array.isArray(result) && result[0]) {
-        if (typeof result[0].toDataURL === 'function') {
-          return result[0].toDataURL(); 
-        } else if (result[0].data) {
-          // Intentar fallbacks
-          throw new Error('Formato crudo devuelto. Se necesita canvas manual.');
-        }
+      // Convertir ImageData (u otros formatos estándar del GenerateResult) a Base64 para el tag img
+      if (result && result.image) {
+         try {
+           const canvas = document.createElement('canvas');
+           canvas.width = result.image.width || 512; 
+           canvas.height = result.image.height || 512;
+           const ctx = canvas.getContext('2d')!;
+           
+           if (result.image instanceof ImageData) {
+             ctx.putImageData(result.image, 0, 0);
+           } else {
+             // Si es HTMLImageElement o ImageBitmap
+             ctx.drawImage(result.image, 0, 0);
+           }
+           return canvas.toDataURL();
+         } catch (e) {
+             console.error("No se pudo convertir de canvas", e);
+         }
       }
-      throw new Error('El modelo no devolvió una imagen válida.');
+      
+      if (result && typeof result.toDataURL === 'function') {
+        return result.toDataURL();
+      }
+
+      // Si nos devuelve objectos en array "images"
+      if (result && Array.isArray(result.images) && result.images.length > 0) {
+          const img = result.images[0];
+          if (img.toDataURL) return img.toDataURL();
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width || 512; canvas.height = img.height || 512;
+          const ctx = canvas.getContext('2d')!;
+          if (img instanceof ImageData) {
+             ctx.putImageData(img, 0, 0);
+          } else {
+             ctx.drawImage(img, 0, 0);
+          }
+          return canvas.toDataURL();
+      }
+      
+      throw new Error('El modelo no devolvió un formato de imagen renderizable esperado.');
     } catch (err) {
       this.stateSub.next({ progress: 100, status: 'Fallo al generar la imagen', isReady: true });
       throw err;

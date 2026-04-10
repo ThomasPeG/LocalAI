@@ -62,11 +62,17 @@
       <ion-input
         [(ngModel)]="userInput"
         (keyup.enter)="sendMessage()"
-        [placeholder]="imageMode ? 'Describe la imagen a generar...' : 'Escribe un mensaje...' ">
+        [placeholder]="imageMode ? 'Describe la imagen a generar...' : 'Escribe un mensaje...' "
+        [disabled]="isGenerating">
       </ion-input>
-      <ion-button fill="clear" color="primary" (click)="sendMessage()" [disabled]="!userInput.trim() || isGenerating || (!llmReady && !imageMode) || (!imgReady && imageMode)">
-        <ion-icon name="send"></ion-icon>
+      <ion-button fill="clear" color="danger" (click)="stopGeneration()" *ngIf="isGenerating; else sendBtn">
+        <ion-icon name="stop-circle"></ion-icon>
       </ion-button>
+      <ng-template #sendBtn>
+        <ion-button fill="clear" color="primary" (click)="sendMessage()" [disabled]="!userInput.trim() || (!llmReady && !imageMode) || (!imgReady && imageMode)">
+          <ion-icon name="send"></ion-icon>
+        </ion-button>
+      </ng-template>
     </div>
   </ion-toolbar>
 </ion-footer>
