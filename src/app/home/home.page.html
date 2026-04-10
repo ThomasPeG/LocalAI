@@ -1,0 +1,72 @@
+<ion-header class="glass-header ion-no-border">
+  <ion-toolbar color="transparent">
+    <ion-title>
+      <div class="header-title">
+        <ion-icon name="flash-outline" color="primary"></ion-icon>
+        <span style="font-weight: 700; margin-left: 6px;">AI Local</span>
+      </div>
+    </ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="presentStatusModal()">
+        <ion-icon name="server-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [scrollY]="true" #chatContent class="ion-padding">
+  
+  <div class="welcome-container" *ngIf="messages.length === 0">
+    <div class="neon-glow"></div>
+    <h1>Hola.</h1>
+    <p>Soy tu modelo de IA 100% Local y Privado.</p>
+    <div class="status-chips">
+      <ion-chip [color]="llmReady ? 'success' : 'warning'">
+        <ion-icon name="chatbox"></ion-icon>
+        <ion-label>Chat: {{ llmReady ? 'Listo' : 'Cargando (' + (llmProgress | number:'1.0-0') + '%)' }}</ion-label>
+      </ion-chip>
+      <ion-chip [color]="imgReady ? 'success' : 'warning'">
+        <ion-icon name="image"></ion-icon>
+        <ion-label>Imágenes: {{ imgReady ? 'Listo' : 'Cargando (' + (imgProgress | number:'1.0-0') + '%)' }}</ion-label>
+      </ion-chip>
+    </div>
+  </div>
+
+  <div class="chat-container">
+    <ng-container *ngFor="let msg of messages">
+      <div *ngIf="msg.role === 'user'" class="chat-bubble-user" [innerHTML]="msg.content"></div>
+      <div *ngIf="msg.role === 'assistant'" class="chat-bubble-ai markdown-body" [innerHTML]="parseMarkdown(msg.content)"></div>
+    </ng-container>
+    
+    <div *ngIf="isGenerating" class="chat-bubble-ai typing-indicator">
+      <span></span><span></span><span></span>
+    </div>
+    
+    <!-- Para las imágenes generadas -->
+    <div *ngIf="generatedImageSrc" class="image-result-container">
+      <img [src]="generatedImageSrc" class="generated-image" />
+      <ion-button fill="clear" color="secondary" (click)="clearImage()">
+        <ion-icon name="close-circle" slot="start"></ion-icon>
+        Ocultar
+      </ion-button>
+    </div>
+  </div>
+</ion-content>
+
+<ion-footer class="ion-no-border">
+  <ion-toolbar class="footer-toolbar">
+    <div class="input-container glass-panel">
+      <ion-button fill="clear" color="medium" (click)="toggleImageMode()">
+        <ion-icon [name]="imageMode ? 'image' : 'text'" [color]="imageMode ? 'secondary' : 'medium'"></ion-icon>
+      </ion-button>
+      <ion-input
+        [(ngModel)]="userInput"
+        (keyup.enter)="sendMessage()"
+        [placeholder]="imageMode ? 'Describe la imagen a generar...' : 'Escribe un mensaje...' ">
+      </ion-input>
+      <ion-button fill="clear" color="primary" (click)="sendMessage()" [disabled]="!userInput.trim() || isGenerating || (!llmReady && !imageMode) || (!imgReady && imageMode)">
+        <ion-icon name="send"></ion-icon>
+      </ion-button>
+    </div>
+  </ion-toolbar>
+</ion-footer>

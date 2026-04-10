@@ -1,0 +1,87 @@
+.welcome-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 60vh;
+  text-align: center;
+  position: relative;
+
+  h1 {
+    font-size: 3rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    background: linear-gradient(to right, #7b42f6, #0ee0b2);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  
+  p {
+    color: var(--ion-color-medium);
+    margin-bottom: 2rem;
+  }
+}
+
+.status-chips {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.chat-container {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 20px;
+}
+
+.footer-toolbar {
+  --background: transparent;
+  padding: 10px 15px 25px 15px; // Extra padding at bottom for mobile home indicator
+}
+
+.input-container {
+  display: flex;
+  align-items: center;
+  padding: 4px 8px;
+  
+  ion-input {
+    --padding-start: 10px;
+    flex: 1;
+    font-size: 1rem;
+  }
+}
+
+/* Typing indicator micro-animation */
+.typing-indicator span {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  background-color: #aaa;
+  border-radius: 50%;
+  margin: 0 2px;
+  animation: typing 1.4s infinite linear;
+}
+
+.typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+.typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes typing {
+  0% { transform: translateY(0px) }
+  25% { transform: translateY(-5px) }
+  50% { transform: translateY(0px) }
+}
+
+.image-result-container {
+  margin-top: 20px;
+  text-align: center;
+  background: rgba(0,0,0,0.4);
+  padding: 10px;
+  border-radius: 16px;
+
+  .generated-image {
+    max-width: 100%;
+    border-radius: 12px;
+    margin-bottom: 10px;
+  }
+}
